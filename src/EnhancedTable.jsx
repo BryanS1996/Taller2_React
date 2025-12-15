@@ -33,20 +33,8 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import { visuallyHidden } from "@mui/utils";
 
 import CustomizedInputBase from "./InputBase";
-import useProducts from "./hooks/useProducts";
 import useSelection from "./hooks/useSelection";
-import { initialPeople } from "./data/people";
-
-
-function createData(id, name, age) {
-  return {
-    id,
-    name,
-    age,
-  };
-}
-
-const InitialRows = initialPeople.map(({ id, name, age }) => createData(id, name, age));
+import { usePeople } from "./context/PeopleContext.jsx";
 
 function descendingComparator(a, b, orderBy) {
   if (b[orderBy] < a[orderBy]) {
@@ -212,18 +200,22 @@ export default function EnhancedTable() {
   const [page, setPage] = React.useState(0);
   const [dense, setDense] = React.useState(false);
   const [rowsPerPage, setRowsPerPage] = React.useState(5);
-  const { products: rows, filteredProducts, setSearchText, addProduct, deleteByIds } =
-    useProducts(InitialRows);
+  const { people: rows, filteredPeople, setSearchText, addPerson, deleteByIds } = usePeople();
   const { selected, isSelected, toggle, selectAll, clear } = useSelection([]);
-  const nextIdRef = useRef(InitialRows.length + 1);
+  const nextIdRef = useRef(rows.length ? Math.max(...rows.map((r) => r.id)) + 1 : 1);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
     age: "",
   });
 
+  React.useEffect(() => {
+    if (!rows.length) return;
+    nextIdRef.current = Math.max(...rows.map((r) => r.id)) + 1;
+  }, [rows]);
+
   const handleOpenDialog = () => {
-    setFormData({ name: "", calories: "", fat: "", carbs: "", protein: "" });
+    setFormData({ name: "", age: "" });
     setIsDialogOpen(true);
   };
 
@@ -244,7 +236,7 @@ export default function EnhancedTable() {
       name: trimmedName || "Producto sin nombre",
       age: Number(formData.age) || 0,
     };
-    addProduct(newItem);
+    addPerson(newItem);
     clear();
     setIsDialogOpen(false);
   };
@@ -297,10 +289,10 @@ export default function EnhancedTable() {
 
   const visibleRows = React.useMemo(
     () =>
-      [...filteredProducts]
+      [...filteredPeople]
         .sort(getComparator(order, orderBy))
         .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [filteredProducts, order, orderBy, page, rowsPerPage]
+    [filteredPeople, order, orderBy, page, rowsPerPage]
   );
 
   return (
@@ -320,7 +312,7 @@ export default function EnhancedTable() {
               orderBy={orderBy}
               onSelectAllClick={handleSelectAllClick}
               onRequestSort={handleRequestSort}
-              rowCount={filteredProducts.length}
+              rowCount={filteredPeople.length}
             />
             <TableBody>
               {visibleRows.map((row, index) => {
@@ -375,7 +367,7 @@ export default function EnhancedTable() {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}
           component="div"
-          count={filteredProducts.length}
+          count={filteredPeople.length}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
@@ -384,15 +376,15 @@ export default function EnhancedTable() {
       </Paper>
       <Stack spacing={2} direction="row" sx={{ p: 2 }}>
         <Button variant="contained" onClick={handleOpenDialog}>
-          Agregar
+          ADD
         </Button>
-        <Button variant="outlined" color="error" onClick={handleDelete}>
-          Borrar seleccionados
+        <Button variant="contained" color="error" onClick={handleDelete}>
+          DELETE
         </Button>
       </Stack>
 
       <Dialog open={isDialogOpen} onClose={handleCloseDialog} fullWidth maxWidth="sm">
-        <DialogTitle>Agregar nuevo producto</DialogTitle>
+        <DialogTitle>ADD NEW PERSON</DialogTitle>
         <DialogContent>
           <Box component="form" id="new-product-form" onSubmit={handleAdd} sx={{ mt: 1 }}>
             <Grid container spacing={2}>
@@ -422,9 +414,9 @@ export default function EnhancedTable() {
           </Box>
         </DialogContent>
         <DialogActions>
-          <Button onClick={handleCloseDialog}>Cancelar</Button>
+          <Button onClick={handleCloseDialog}>CANCEL</Button>
           <Button type="submit" form="new-product-form" variant="contained">
-            Guardar
+            SAVE
           </Button>
         </DialogActions>
       </Dialog>

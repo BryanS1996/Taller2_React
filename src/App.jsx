@@ -8,6 +8,7 @@ import Container from "@mui/material/Container";
 
 import "./App.css";
 import AppRoutes from "./routes/AppRoutes.jsx";
+import { PeopleProvider } from "./context/PeopleContext.jsx";
 
 function App() {
   return (
@@ -52,9 +53,11 @@ function App() {
         </Toolbar>
       </AppBar>
 
-      <Container sx={{ py: 4 }}>
-        <AppRoutes />
-      </Container>
+      <PeopleProvider>
+        <Container sx={{ py: 4 }}>
+          <AppRoutes />
+        </Container>
+      </PeopleProvider>
     </>
   );
 }

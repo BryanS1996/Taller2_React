@@ -5,17 +5,19 @@ import Paper from "@mui/material/Paper";
 import Typography from "@mui/material/Typography";
 import Divider from "@mui/material/Divider";
 
-import { initialPeople } from "./data/people";
+import { usePeople } from "./context/PeopleContext.jsx";
 
 function PeopleList() {
+  const { people } = usePeople();
+
   return (
     <Paper sx={{ p: 2 }}>
       <Typography variant="h6" sx={{ mb: 1 }}>
-        Personas ({initialPeople.length})
+        Personas ({people.length})
       </Typography>
       <Divider sx={{ mb: 1 }} />
       <List>
-        {initialPeople.map((person) => (
+        {people.map((person) => (
           <ListItem key={person.id} disablePadding>
             <ListItemText primary={person.name} secondary={`Edad: ${person.age}`} />
           </ListItem>
