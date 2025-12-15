@@ -2,7 +2,13 @@ import * as React from "react";
 import { useState } from "react";
 import Stack from "@mui/material/Stack";
 import Button from "@mui/material/Button";
-
+import Dialog from "@mui/material/Dialog";
+import DialogTitle from "@mui/material/DialogTitle";
+import DialogContent from "@mui/material/DialogContent";
+import DialogActions from "@mui/material/DialogActions";
+import TextField from "@mui/material/TextField";
+import Grid from "@mui/material/Grid";
+import { useRef } from "react";
 import PropTypes from "prop-types";
 import { alpha } from "@mui/material/styles";
 import Box from "@mui/material/Box";
@@ -27,34 +33,20 @@ import FilterListIcon from "@mui/icons-material/FilterList";
 import { visuallyHidden } from "@mui/utils";
 
 import CustomizedInputBase from "./InputBase";
+import useProducts from "./hooks/useProducts";
+import useSelection from "./hooks/useSelection";
+import { initialPeople } from "./data/people";
 
 
-function createData(id, name, calories, fat, carbs, protein) {
+function createData(id, name, age) {
   return {
     id,
     name,
-    calories,
-    fat,
-    carbs,
-    protein,
+    age,
   };
 }
 
-const InitialRows = [
-  createData(1, "Cupcake", 305, 3.7, 67, 4.3),
-  createData(2, "Donut", 452, 25.0, 51, 4.9),
-  createData(3, "Eclair", 262, 16.0, 24, 6.0),
-  createData(4, "Frozen yoghurt", 159, 6.0, 24, 4.0),
-  createData(5, "Gingerbread", 356, 16.0, 49, 3.9),
-  createData(6, "Honeycomb", 408, 3.2, 87, 6.5),
-  createData(7, "Ice cream sandwich", 237, 9.0, 37, 4.3),
-  createData(8, "Jelly Bean", 375, 0.0, 94, 0.0),
-  createData(9, "KitKat", 518, 26.0, 65, 7.0),
-  createData(10, "Lollipop", 392, 0.2, 98, 0.0),
-  createData(11, "Marshmallow", 318, 0, 81, 2.0),
-  createData(12, "Nougat", 360, 19.0, 9, 37.0),
-  createData(13, "Oreo", 437, 18.0, 63, 4.0),
-];
+const InitialRows = initialPeople.map(({ id, name, age }) => createData(id, name, age));
 
 function descendingComparator(a, b, orderBy) {
   if (b[orderBy] < a[orderBy]) {
@@ -74,34 +66,22 @@ function getComparator(order, orderBy) {
 
 const headCells = [
   {
+    id: "id",
+    numeric: true,
+    disablePadding: false,
+    label: "ID",
+  },
+  {
     id: "name",
     numeric: false,
     disablePadding: true,
-    label: "Dessert (100g serving)",
+    label: "Nombre",
   },
   {
-    id: "calories",
+    id: "age",
     numeric: true,
     disablePadding: false,
-    label: "Calories",
-  },
-  {
-    id: "fat",
-    numeric: true,
-    disablePadding: false,
-    label: "Fat (g)",
-  },
-  {
-    id: "carbs",
-    numeric: true,
-    disablePadding: false,
-    label: "Carbs (g)",
-  },
-  {
-    id: "protein",
-    numeric: true,
-    disablePadding: false,
-    label: "Protein (g)",
+    label: "Edad",
   },
 ];
 
@@ -201,7 +181,7 @@ function EnhancedTableToolbar(props) {
           id="tableTitle"
           component="div"
         >
-          Nutrition
+          Personas
         </Typography>
       )}
       {numSelected > 0 ? (
@@ -227,39 +207,58 @@ EnhancedTableToolbar.propTypes = {
 
 export default function EnhancedTable() {
   const [order, setOrder] = React.useState("asc");
-  const [orderBy, setOrderBy] = React.useState("calories");
-  const [selected, setSelected] = React.useState([]);
+  const [orderBy, setOrderBy] = React.useState("id");
+  // selección gestionada por hook reusable
   const [page, setPage] = React.useState(0);
   const [dense, setDense] = React.useState(false);
   const [rowsPerPage, setRowsPerPage] = React.useState(5);
-  
-  const [rows, setRows] = useState(InitialRows);
-  const [searchText, setSearchText] = React.useState("");
+  const { products: rows, filteredProducts, setSearchText, addProduct, deleteByIds } =
+    useProducts(InitialRows);
+  const { selected, isSelected, toggle, selectAll, clear } = useSelection([]);
+  const nextIdRef = useRef(InitialRows.length + 1);
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [formData, setFormData] = useState({
+    name: "",
+    age: "",
+  });
 
-  const handleAdd = () => { // Function to add a new item
-    const newItem= {
-      id: Date.now(),
-      name: "New Dessert",
-      calories: 100,
-      fat: 5,
-      carbs: 20,
-      protein: 3
+  const handleOpenDialog = () => {
+    setFormData({ name: "", calories: "", fat: "", carbs: "", protein: "" });
+    setIsDialogOpen(true);
+  };
+
+  const handleCloseDialog = () => {
+    setIsDialogOpen(false);
+  };
+
+  const handleFieldChange = (event) => {
+    const { name, value } = event.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const handleAdd = (event) => {
+    event.preventDefault();
+    const trimmedName = formData.name.trim();
+    const newItem = {
+      id: nextIdRef.current++,
+      name: trimmedName || "Producto sin nombre",
+      age: Number(formData.age) || 0,
     };
-    setRows([...rows, newItem]);
-  }; 
+    addProduct(newItem);
+    clear();
+    setIsDialogOpen(false);
+  };
 
-  const handleDelete = () => {  // Function to delete selected items
-    setRows(rows.slice(0, -1));
+  const handleDelete = () => {
+    if (selected.length === 0) return;
+    deleteByIds(selected);
+    clear();
   };
   
   const handleSearch = (text) => {
     setSearchText(text);
     setPage(0);   // Reset to first page on new search
   }
-
-  const filteredRows = rows.filter((row) =>
-    row.name.toLowerCase().includes(searchText.toLowerCase())
-  );
 
   const handleRequestSort = (event, property) => {
     const isAsc = orderBy === property && order === "asc";
@@ -270,29 +269,14 @@ export default function EnhancedTable() {
   const handleSelectAllClick = (event) => {
     if (event.target.checked) {
       const newSelected = rows.map((n) => n.id);
-      setSelected(newSelected);
+      selectAll(newSelected);
       return;
     }
-    setSelected([]);
+    clear();
   };
 
   const handleClick = (event, id) => {
-    const selectedIndex = selected.indexOf(id);
-    let newSelected = [];
-
-    if (selectedIndex === -1) {
-      newSelected = newSelected.concat(selected, id);
-    } else if (selectedIndex === 0) {
-      newSelected = newSelected.concat(selected.slice(1));
-    } else if (selectedIndex === selected.length - 1) {
-      newSelected = newSelected.concat(selected.slice(0, -1));
-    } else if (selectedIndex > 0) {
-      newSelected = newSelected.concat(
-        selected.slice(0, selectedIndex),
-        selected.slice(selectedIndex + 1)
-      );
-    }
-    setSelected(newSelected);
+    toggle(id);
   };
 
   const handleChangePage = (event, newPage) => {
@@ -313,10 +297,10 @@ export default function EnhancedTable() {
 
   const visibleRows = React.useMemo(
     () =>
-      [...filteredRows]
+      [...filteredProducts]
         .sort(getComparator(order, orderBy))
         .slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage),
-    [filteredRows, order, orderBy, page, rowsPerPage]
+    [filteredProducts, order, orderBy, page, rowsPerPage]
   );
 
   return (
@@ -336,11 +320,11 @@ export default function EnhancedTable() {
               orderBy={orderBy}
               onSelectAllClick={handleSelectAllClick}
               onRequestSort={handleRequestSort}
-              rowCount={filteredRows.length}
+              rowCount={filteredProducts.length}
             />
             <TableBody>
               {visibleRows.map((row, index) => {
-                const isItemSelected = selected.includes(row.id);
+                const isItemSelected = isSelected(row.id);
                 const labelId = `enhanced-table-checkbox-${index}`;
 
                 return (
@@ -363,6 +347,7 @@ export default function EnhancedTable() {
                         }}
                       />
                     </TableCell>
+                    <TableCell align="right">{row.id}</TableCell>
                     <TableCell
                       component="th"
                       id={labelId}
@@ -371,10 +356,7 @@ export default function EnhancedTable() {
                     >
                       {row.name}
                     </TableCell>
-                    <TableCell align="right">{row.calories}</TableCell>
-                    <TableCell align="right">{row.fat}</TableCell>
-                    <TableCell align="right">{row.carbs}</TableCell>
-                    <TableCell align="right">{row.protein}</TableCell>
+                    <TableCell align="right">{row.age}</TableCell>
                   </TableRow>
                 );
               })}
@@ -393,7 +375,7 @@ export default function EnhancedTable() {
         <TablePagination
           rowsPerPageOptions={[5, 10, 25]}
           component="div"
-          count={filteredRows.length}
+          count={filteredProducts.length}
           rowsPerPage={rowsPerPage}
           page={page}
           onPageChange={handleChangePage}
@@ -401,13 +383,51 @@ export default function EnhancedTable() {
         />
       </Paper>
       <Stack spacing={2} direction="row" sx={{ p: 2 }}>
-        <Button variant="contained" onClick={handleAdd}>
-          Add
+        <Button variant="contained" onClick={handleOpenDialog}>
+          Agregar
         </Button>
         <Button variant="outlined" color="error" onClick={handleDelete}>
-          Delete
+          Borrar seleccionados
         </Button>
       </Stack>
+
+      <Dialog open={isDialogOpen} onClose={handleCloseDialog} fullWidth maxWidth="sm">
+        <DialogTitle>Agregar nuevo producto</DialogTitle>
+        <DialogContent>
+          <Box component="form" id="new-product-form" onSubmit={handleAdd} sx={{ mt: 1 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12}>
+                <TextField
+                  autoFocus
+                  required
+                  label="Nombre"
+                  name="name"
+                  fullWidth
+                  value={formData.name}
+                  onChange={handleFieldChange}
+                />
+              </Grid>
+              <Grid item xs={12} sm={6}>
+                <TextField
+                  label="Edad"
+                  name="age"
+                  type="number"
+                  fullWidth
+                  value={formData.age}
+                  onChange={handleFieldChange}
+                  inputProps={{ min: 0 }}
+                />
+              </Grid>
+            </Grid>
+          </Box>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={handleCloseDialog}>Cancelar</Button>
+          <Button type="submit" form="new-product-form" variant="contained">
+            Guardar
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
